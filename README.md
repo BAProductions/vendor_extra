@@ -14,7 +14,11 @@ sepolicy error etc.."*
 
     ***A:** "Well simple you add you'er devices room service files & use as it or fork and ajust it to fit your needs, devices & you'er build process"*
 
-4.  ***Q:** "Where do I add in my roomseves files?"*
+4.  ***Q:** "Is Vendor Extra a replacement learn the various command for building & working on Android roms for a devices?"*
+
+    ***A:** "Well no Vendor Extra is a tool with useful command to speed up your build process & in no way a it replace learn the various command for building & working on Android roms witch highly recommend you learn"*
+
+5.  ***Q:** "Where do I add in my roomseves files?"*
 
     ***A:** "Well simple at the end of the file before the closing </manifest>."*
     
