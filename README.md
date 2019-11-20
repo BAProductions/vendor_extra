@@ -29,7 +29,7 @@ sepolicy error etc."*
     ### Code
     ~~~
     <!-- Lineage Depdence For All Samsung Devices  -->
-    <project name="BAProductions/vendor_extra" path="vendor/extra" remote="github" revision="lineage-16.0"/>
+    <project name="BAProductions/vendor_extra" path="vendor/extra" remote="github" revision="master"/>
     ~~~
   
 # List Of Command Built Into  The Tool 
