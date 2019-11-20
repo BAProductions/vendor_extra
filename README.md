@@ -13,6 +13,17 @@ sepolicy error etc.."*
 3.  ***Q:** "That can you do with base version vendor_extra"*
 
     ***A:** "Well simple you add you'er devices room service files & use as it or fork and ajust it to fit your needs, devices & you'er build process"*
+
+4.  ***Q:** "Where do I add in my roomseves files?"*
+
+    ***A:** "Well simple at the end of the file before the closing </manifest>."*
+    
+    ### Code
+    ~~~
+    <!-- Lineage Depdence For All Samsung Devices  -->
+    <project name="BAProductions/vendor_extra" path="vendor/extra" remote="github" revision="lineage-16.0"/>
+    ~~~
+  
 # List Of Command Built Into  The Tool 
 INIT
 --------------------------------
