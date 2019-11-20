@@ -155,7 +155,7 @@ function func_alias()
 	# ADB Flags
 	alias rb="adb wait-for-device reboot"
 	alias rbir="adb wait-for-device reboot recovery"
-	alias rbir="adb wait-for-device reboot download"
+	alias rbid="adb wait-for-device reboot download"
 }
 
 function show_alias()
@@ -209,5 +209,5 @@ function show_alias()
 	# ADB Flags
 	echo -e "${CL_LBL}\nrbir${CL_RST}\tadb wait-for-device reboot reboot"
 	echo -e "${CL_LBL}\nrbir${CL_RST}\tadb wait-for-device reboot recovery"
-	echo -e "${CL_LBL}\nrbir${CL_RST}\tadb wait-for-device reboot download"
+	echo -e "${CL_LBL}\nrbid${CL_RST}\tadb wait-for-device reboot download"
 }
