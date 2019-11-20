@@ -75,7 +75,7 @@ Other Commands
 || tss | Allow you to take screenshots fo the rom with timestamp just incase you want upload them to XDA or alaskalinuxuser wants too see what camera error is a UI lavel |
 || rb | Reboots your device |
 || rbir | Reboots your device tnto recovery mode |
-|| rbidm | Reboots your device tnto downloade mode/fastboot mode & Odin mode for all Samsung devices |
+|| rbid | Reboots your device tnto downloade mode/fastboot mode & Odin mode for all Samsung devices |
 
 
 Most of the file have been taking form [sub77](https://github.com/sub77/)  & rewitten for my needs
