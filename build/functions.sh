@@ -10,26 +10,26 @@ unset with_su
 unset CCACHE_DIR
 }
 
-function patchcommontree()
-{
-for f in `test -d vendor && find -L vendor/extra/patch/*/ -maxdepth 1 -name 'apply.sh' 2> /dev/null`
-do
-echo -e "${CL_YLW}\nPatching $f${CL_RST}"
-. $f
-done
-unset f
-}
+#function patchcommontree()
+#{
+#for f in `test -d vendor && find -L vendor/extra/patch/*/ -maxdepth 1 -name 'apply.sh' 2> /dev/null`
+#do
+#echo -e "${CL_YLW}\nPatching $f${CL_RST}"
+#. $f
+#done
+#unset f
+#}
 
-function patchdevicetree()
-{
-for f in `test -d device && find -L device/*/$MY_BUILD/patch -maxdepth 4 -name 'apply.sh' 2> /dev/null | sort` \
- `test -d vendor && find -L vendor/extra/patch/device/$MY_BUILD -maxdepth 1 -name 'apply.sh' 2> /dev/null | sort`
-do
-echo -e "${CL_YLW}\nPatching $f${CL_RST}"
-. $f
-done
-unset f
-}
+#function patchdevicetree()
+#{
+#for f in `test -d device && find -L device/*/$MY_BUILD/patch -maxdepth 4 -name 'apply.sh' 2> /dev/null | sort` \
+# `test -d vendor && find -L vendor/extra/patch/device/$MY_BUILD -maxdepth 1 -name 'apply.sh' 2> /dev/null | sort`
+#do
+#echo -e "${CL_YLW}\nPatching $f${CL_RST}"
+#. $f
+#done
+#unset f
+#}
 
 function set_stuff_for_environment()
 {
@@ -37,8 +37,8 @@ settitle
 set_java_home
 setpaths
 set_sequence_number
-patchcommontree
-patchdevicetree
+#patchcommontree
+#patchdevicetree
 
 # With this environment variable new GCC can apply colors to warnings/errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
@@ -111,14 +111,14 @@ function func_make_debug_dir()
 {
 	# Make Folder With Current Date
 	echo "Making Folder Debug"
-	mkdir -p $home_dir"
+	mkdir -p $home_dir
 }
 
 function func_alias()
 {
 	alias cn="echo $(sed "s/lineage_//" <<< "${TARGET_PRODUCT}")"
 	# Run Onces
-	alias init="func_make_debug_dir
+	alias init="func_make_debug_dir"
 	# Update Tools
 	alias udt="repo sync -c -d --force-sync -j10 BAProductions/vendor_extra && . build/envsetup.sh && show_alias"
 	# Repo Sync Command
@@ -148,13 +148,14 @@ function func_alias()
 	# WiFi Command
 	alias dw="adb shell 'su -c \"svc wifi disable\"' && echo 'WiFi Disable'"
 	alias ew="adb shell 'su -c \"svc wifi enable\"' && echo 'WiFi Enable'"
+	# Sepolicy Commands
+	alias fsep="adb pull /sys/fs/selinux/policy $home_dir && adb logcat -b all -d | audit2allow -p $home_dir/policy"
 	# Other Command
 	alias tss=". build/envsetup.sh && show_alias && adb shell screencap -p /sdcard/screen.png && adb pull /sdcard/screen.png $home_dir/&& mv $home_dir/screen.png $home_dir/screen-$(date +"%m-%d-%Y\ %T").png &&  adb shell rm -f /sdcard/.screen.png"
-	alias fsep="adb pull /sys/fs/selinux/policy $home_dir && adb logcat -b all -d | audit2allow -p $home_dir/policy"
-	alias sabao="croot && for otaupdate in out/dist/*-target_files-*.zip; do ./build/tools/releasetools/sign_target_files_apks -o -d ~/.android-certs $otaupdate $(echo "signed-$(echo "$otaupdate" | sed -e 's/out\/dist\///')"); done && for signedotaupdate in $(ls *-target_files-*.zip); do ./build/tools/releasetools/ota_from_target_files -k ~/.android-certs/releasekey --block --backup=true $signedotaupdate $(sed 's/signed-//' <<< "$signedotaupdate"); done;"
 	# ADB Flags
 	alias rb="adb wait-for-device reboot"
 	alias rbir="adb wait-for-device reboot recovery"
+	alias rbir="adb wait-for-device reboot download"
 }
 
 function show_alias()
@@ -199,12 +200,14 @@ function show_alias()
 	echo -e "\nWiFi Commands"
 	echo -e "${CL_LBL}\ndw${CL_RST}\tadb shell 'su -c "\"svc wifi disable"\"' && echo 'WiFi Disabled'"
 	echo -e "${CL_LBL}\new${CL_RST}\tadb shell 'su -c "\"svc wifi enable"\"' && echo 'WiFi Enabled'"
+	# Sepolicy Commands
+	echo -e "\nSepolicy Command
+	echo -e "${CL_LBL}\nfsep${CL_RST}\tadb pull /sys/fs/selinux/policy $home_dir && adb logcat -b all -d | audit2allow -p $home_dir/policy"
 	# Other Commands
 	echo -e "\nOther Commands"
 	echo -e "${CL_LBL}\ntss${CL_RST}\t. build/envsetup.sh && show_alias && adb shell screencap -p /sdcard/screen.png && adb pull /sdcard/screen.png && mv screen.png ~/$rom_dir/screen-$(date +"%m-%d-%Y\ %T").png &&  adb shell rm -f /sdcard/.screen.png"
-	echo -e "${CL_LBL}\nfsep${CL_RST}\tadb pull /sys/fs/selinux/policy $home_dir && adb logcat -b all -d | audit2allow -p $home_dir/policy"
-	echo -e "${CL_LBL}\nsabao${CL_RST}\tcroot && for otaupdate in out/dist/*-target_files-*.zip; do ./build/tools/releasetools/sign_target_files_apks -o -d ~/.android-certs $otaupdate $(echo "signed-$(echo "$otaupdate" | sed -e 's/out\/dist\///')"); done && for signedotaupdate in $\e(((ls *-target_files-*.zip); do ./build/tools/releasetools/ota_from_target_files -k ~/.android-certs/releasekey --block --backup=true $signedotaupdate $(sed 's/signed-//' <<<"$signedotaupdate"); done;"
 	# ADB Flags
+	echo -e "${CL_LBL}\nrbir${CL_RST}\tadb wait-for-device reboot reboot"
 	echo -e "${CL_LBL}\nrbir${CL_RST}\tadb wait-for-device reboot recovery"
-   	echo -e "${CL_LBL}\n${CL_RST}"
+	echo -e "${CL_LBL}\nrbir${CL_RST}\tadb wait-for-device reboot download"
 }
