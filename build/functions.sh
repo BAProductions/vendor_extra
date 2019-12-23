@@ -11,7 +11,7 @@ unset CCACHE_DIR
 }
 
 #function patchcommontree()
-#{
+{
 #for f in `test -d vendor && find -L vendor/extra/patch/*/ -maxdepth 1 -name 'apply.sh' 2> /dev/null`
 #do
 #echo -e "${CL_YLW}\nPatching $f${CL_RST}"
@@ -21,11 +21,11 @@ unset CCACHE_DIR
 #}
 
 #function patchdevicetree()
-#{
+{
 #for f in `test -d device && find -L device/*/$MY_BUILD/patch -maxdepth 4 -name 'apply.sh' 2> /dev/null | sort` \
 # `test -d vendor && find -L vendor/extra/patch/device/$MY_BUILD -maxdepth 1 -name 'apply.sh' 2> /dev/null | sort`
 #do
-#echo -e "${CL_YLW}\nPatching $f${CL_RST}"
+echo -e "${CL_YLW}\nPatching $f${CL_RST}"
 #. $f
 #done
 #unset f
@@ -107,85 +107,130 @@ if ! `sed '/xml/!d' /tmp/rsync`&> /dev/null; then repo sync -j100 --force-sync; 
 echo -e "${CL_GRN} * Setup repos${CL_RST}"
 echo -e "${CL_LBL}   "`sed '/xml/!d' /tmp/rsync`"\n${CL_RST}"
 }
+function func_make_new_roms_dir()
+{
+    # Make Folder With Current Date
+	echo "Making  Folder In $roms_dir With Today Date $(date +"%d-%m-%Y")"
+	mkdir -p $roms_dir/"$(date +"%d-%m-%Y")"
+	# Make userdebug folder
+	echo "Making userdebug Folder In $roms_dir/$(date +"%d-%m-%Y")/"
+    mkdir -p $roms_dir/"$(date +"%d-%m-%Y")"/userdebug
+    # Make eng folder
+	echo "Making eng Folder In $roms_dir/$(date +"%d-%m-%Y")/"
+    mkdir -p $roms_dir/"$(date +"%d-%m-%Y")"/eng
+}
+
+# Building All Devices
+function func_build_all_devices()
+{
+    func_make_new_roms_dir;
+    while IFS= read -r name; do
+		if [ $name = "brake" ]; then
+			adb reboot recovery
+			brake
+		else
+			device_code_name="$(sed 's/-userdebug//' <<< $(sed 's/lineage_//' <<< "${name}"))"
+			#device_zip="lineage-16.0-$(date +"%Y%m%d")-UNOFFICIAL-$device_code_name-Unsweetened-XDA-BUILD.zip"
+			#device_ota_zip="lineage_$device_code_name-ota-eng.android.zip"
+			#$device_zip_location="$out_dir/$device_code_name/$device_zip"
+			#device_ota_zip_location="$out_dir/$device_code_name/$device_ota_zip"
+			# Clean out/ folder After each device
+			echo "Clean out/"
+			mka clean -j$(nproc --all) && mka clobber -j$(nproc --all)
+			# Cuing Up Next InLine
+			echo "Cuing Up Next InLine $device_code_name"
+			lunch $name WITH_DEXPREOPT=false WITH_GAPPS=false -j$(nproc --all)
+			# Making Boot.img
+			echo "Making Boot.img"
+			mka bootimage -j$(nproc --all)
+			# Making Bacon
+			echo "Making Bacon"
+			mka bacon -j$(nproc --all)
+			# Moving Previous Completed ZIP Files Form /lineage-16.0/out/target/product/devicename/ to rom/current-date/build-type folder After each device is done building
+			echo "Moving Previous Completed ZIP Files From $out_dir/$device_code_name/$device_zip/*.zip To $roms_dir/$(date +"%d-%m-%Y")/userdebug"
+			cp $out_dir$device_code_name/$device_zip/*.zip $roms_dir/"$(date +"%d-%m-%Y")"/userdebug/
+			# Moving Previous Completed OTA ZIP file form /lineage-16.0/out/target/product/devicename/ to rom/current-date/build-type folder After each device is done building
+			#echo "Moving Previous Completed ZIP From $device_ota_zip_location To $roms_dir/$(date +"%d-%m-%Y")/userdebug"
+			#cp $device_ota_zip_location $roms_dir/"$(date +"%d-%m-%Y")"/userdebug/
+			sleep 1
+			#continue
+		fi
+
+	done < $device_List
+}
 
 function func_alias()
 {
 	alias cn="echo $(sed "s/lineage_//" <<< "${TARGET_PRODUCT}")"
-	#Update Tools
-	alias udt="repo sync -c -d --force-sync BAProductions/vendor_extra && . build/envsetup.sh && show_alias"
-	#Repo Sync Command
-	alias rs="repo sync -c -d --force-sync && . build/envsetup.sh && show_alias"
+	# Update Tools
+	alias udt="repo sync -c -d --force-sync -j4 BAProductions/vendor_extra && . build/envsetup.sh && show_alias"
+	# Repo Sync Command
+	alias rs="repo sync -c -d --force-sync -j4 && . build/envsetup.sh && show_alias"
 	alias arb="cd vendor/cm/ && git am --abort && cd ../.. && . build/envsetup.sh && show_alias"
-	#Nexus 7 More Control Panel
-	alias lgrou="lunch aosp_grouper-user -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	alias lgroud="lunch aosp_grouper-userdebug -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	alias lgroeng="lunch aosp_grouper-eng -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	#Nexus 7 More Control Extre Command
-	alias mgdv="mka clobber -j$(expr $(nproc --all) \* 10) && lunch aosp_grouper-userdebug  WITH_DEXPREOPT=true -j$(expr $(nproc --all) \* 10)  && mka bacon -j$(expr $(nproc --all) \* 10) && rbir";
-	#Samsung Galaxy Tab E 9.6 WiFi New Tablet
-	alias lgteu="lunch lineage_gtelwifiue-user-j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	alias lgteud="lunch lineage_gtelwifiue-userdebug -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	alias lgteeng="lunch lineage_gtelwifiue-eng -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	#Samsung Galaxy Tab 4 10.1 WiFi Old Tablet
-	alias lmu="lunch lineage_matissewifi-user -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	alias lmud="lunch lineage_matissewifi-userdebug -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_aliass"
-	alias lmeng="lunch lineage_matissewifi-eng -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	alias mofmbeng="mka clobber -j$(expr $(nproc --all) \* 10) && breakfast lineage_matissewifi-eng -j$(expr $(nproc --all) \* 10) && mka target-files-package dist otatools"
-	alias mofmbud="mka clobber -j$(expr $(nproc --all) \* 10) && breakfast lineage_matissewifi-userdebug -j$(expr $(nproc --all) \* 10) && mka target-files-package dist otatools"
-	#Samsung Galaxy Tab 4 10.1 WiFi Old Tablet Extre
-	alias mmwdvus="nfdj && wnga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=false -j$(expr $(nproc --all) \* 10) && rbir";
-	alias mmwdvs="nfdj && wga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=true -j$(expr $(nproc --all) \* 10) && rbir";
-	alias mmwdvsp="fdj && wga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=true -j$(expr $(nproc --all) \* 10) && rbir";
-	alias mmwdvb="wnga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matisselte-eng WITH_DEXPREOPT=true WITH_GAPPS=false -j$(expr $(nproc --all) \* 10) && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=true -j$(expr $(nproc --all) \* 10) && rbir"
-	alias mcl="mka camera.msm8226 -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/hw/camera.msm8226.so system/lib/hw/ && adb shell chmod 0644 system/lib/hw/camera.msm8226.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
-	#Camera Wrapper For MSM8226 Devices
-	alias mcs="mka libmmcamera_sr130pc20_shim -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/libmmcamera_sr130pc20_shim.so system/lib/ && adb shell chmod 0644 system/lib/libmmcamera_sr130pc20_shim.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
-	#Build Command
-	#Build Command Userdubug Sweetend
-	alias mat4uds="export WITH_DEXPREOPT=false && nfdj && wga && mka clobber -j40 && nfdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisselte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisse3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_milletwifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true-j40 && nfdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_millet3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 &&  fdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	alias mat4wmduds="export WITH_DEXPREOPT=false && nfdj && wga && mka clobber -j40 && nfdj && wga && nfdj && wga && brunch lineage_matisselte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisse3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && nfdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_millet3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 &&  fdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	#Build Command Userdubug Unsweetend
-	alias mat4udus="export WITH_DEXPREOPT=false && nfdj && wnga && mka clobber -j40 && nfdj && wnga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisselte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisse3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_milletwifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false-j40 && nfdj && wnga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_millet3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	#Build Command Eng
-	#Build Command Eng Sweetend
-	alias mat4engs="nfdj && wga && mka clobber -j40 && nfdj && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisse3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_milletwifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true-j40 && nfdj && wga && brunch lineage_milletlte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_millet3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && fdj && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	#Build Command Eng Unsweetend
+	# Nexus 7 More Control Panel
+	alias lgrou="lunch aosp_grouper-user -j4 && . build/envsetup.sh && show_alias"
+	alias lgroud="lunch aosp_grouper-userdebug -j4 && . build/envsetup.sh && show_alias"
+	alias lgroeng="lunch aosp_grouper-eng -j4 && . build/envsetup.sh && show_alias"
+	# Nexus 7 More Control Extre Command
+	alias mgdv="mka clobber -j4 && lunch aosp_grouper-userdebug  WITH_DEXPREOPT=true -j4  && mka bacon -j4 && rbir";
+	# Samsung Galaxy Tab E 9.6 WiFi New Tablet
+	alias lgteu="lunch lineage_gtelwifiue-user-j4 && . build/envsetup.sh && show_alias"
+	alias lgteud="lunch lineage_gtelwifiue-userdebug -j4 && . build/envsetup.sh && show_alias"
+	alias lgteeng="lunch lineage_gtelwifiue-eng -j4 && . build/envsetup.sh && show_alias"
+	# Samsung Galaxy Tab 4 10.1 WiFi Old Tablet
+	alias lmu="lunch lineage_matissewifi-user -j4 && . build/envsetup.sh && show_alias"
+	alias lmud="lunch lineage_matissewifi-userdebug -j4 && . build/envsetup.sh && show_aliass"
+	alias lmeng="lunch lineage_matissewifi-eng -j4 && . build/envsetup.sh && show_alias"
+	alias mofmbeng="mka clobber -j4 && breakfast lineage_matissewifi-eng -j4 && mka target-files-package dist otatools"
+	alias mofmbud="mka clobber -j4 && breakfast lineage_matissewifi-userdebug -j4 && mka target-files-package dist otatools"
+	# Samsung Galaxy Tab 4 10.1 WiFi Old Tablet Extre
+	alias mcl="mka camera.msm8226 -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/hw/camera.msm8226.so system/lib/hw/ && adb shell chmod 0644 system/lib/hw/camera.msm8226.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
+	# Camera Wrapper For MSM8226 Devices
+	alias mcs="mka libmmcamera_sr130pc20_shim -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/libmmcamera_sr130pc20_shim.so system/lib/ && adb shell chmod 0644 system/lib/libmmcamera_sr130pc20_shim.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
+	# Build Command
+	# Build Command All Devices Userdubug
+	alias bad="func_build_all_devices";
+	# Build Command Eng
+	# Build Command Eng Sweetend
+	alias mat4engs="lunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_matisse3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_milletwifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true-j4 && mb && lunch lineage_milletlte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_millet3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && rbir
+";
+	# Build Command Eng Unsweetend
 	alias mat4engus="export nfdj && wnga && mka clobber -j40 && nfdj && wnga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisse3g-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_milletwifi-eng WITH_DEXPREOPT=false WITH_GAPPS=false-j40 && nfdj && wnga && brunch lineage_milletlte-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_millet3g-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && fdj && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
 	alias mampd="export WITH_DEXPREOPT=false && mka clobber -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir"
 
-	alias mb="mka bacon -j$(expr $(nproc --all) \* 10) && rbir"
-	alias msi="mka systemimage -j$(expr $(nproc --all) \* 10) && mop "
-	alias mbi="mka bootimage -j$(expr $(nproc --all) \* 10) && rbir && adb wait-for-recovery shell rm -f sdcard/boot.img && sleep 20 && adb wait-for-recovery push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/boot.img sdcard/boot.img"
-	alias mbic="mka bootimage -j$(expr $(nproc --all) \* 10) && rbir && sleep 20 && adb wait-for-recovery push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/boot.img sdcard/boot.img && adb wait-for-device shell reboot -p"
-	alias mk="mka kernel -j$(expr $(nproc --all) \* 10) && rbir"
-	alias mri="mka recoveryimage -j$(expr $(nproc --all) \* 10) && rbir && adb wait-for-recovery push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/boot.img sdcard"
-	alias mop="mka otapackage -j$(expr $(nproc --all) \* 10) && rbir"
-	alias mop2="repo sync -c -d --force-sync && mka systemimage -j$(expr $(nproc --all) \* 10) && mka otapackage -j$(expr $(nproc --all) \* 10) && rbir"
-	#Logcat Command
+	alias mb="mka bacon -j4 && rbir"
+	alias msi="mka systemimage -j4 && mop "
+	alias mbi="mka bootimage -j4 && rbir && adb wait-for-recovery shell rm -f sdcard/boot.img && sleep 20 && adb wait-for-recovery push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/boot.img sdcard/boot.img"
+	alias mbic="mka bootimage -j4 && rbir && sleep 20 && adb wait-for-recovery push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/boot.img sdcard/boot.img && adb wait-for-device shell reboot -p"
+	alias mk="mka kernel -j4 && rbir"
+	alias mri="mka recoveryimage -j4 && rbir && adb wait-for-recovery push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/boot.img sdcard"
+	alias mop="mka otapackage -j4 && rbir"
+	alias mop2="repo sync -c -d --force-sync && mka systemimage -j4 && mka otapackage -j4 && rbir"
+	# Logcat Command
 	alias tlc="adb wait-for-device logcat"
 	alias tlcf=". build/envsetup.sh && show_alias && adb reboot && adb wait-for-device logcat|tee >> $home_dir/logcat-$(date +"%m-%d-%Y\ %T").log"
 	alias tlcfe=". build/envsetup.sh && show_alias && adb reboot && adb wait-for-device logcat *:E|tee >> $home_dir/logcat-e-$(date +"%m-%d-%Y\ %T").log"
-	#Kmesg Command
+	# Kmesg Command
 	alias rkm="adb wait-for-device shell cat /proc/kmsg"
 	alias rkmf=". build/envsetup.sh && show_alias && adb wait-for-device shell cat /proc/kmsg | tee >> $home_dir/kmesg-$(date +"%m-%d-%Y\ %T").log"
 	alias rfkmf=". build/envsetup.sh && show_alias && adb reboot && adb wait-for-device shell cat /proc/kmsg |tee >> $home_dir/kmesg-$(date +"%m-%d-%Y\ %T").log"
-	#Dmesg Command
+	# Dmesg Command
 	alias rdm="adb wait-for-device shell dmesg"
 	alias rdmf=". build/envsetup.sh && show_alias && adb wait-for-device shell dmesg | tee >> $home_dir/dmsg-$(date +"%m-%d-%Y\ %T").log"
 	alias rfdmf=". build/envsetup.sh && show_alias && adb reboot && adb wait-for-device shell dmesg | tee >> $home_dir/dmsg-$(date +"%m-%d-%Y\ %T").log"
-	#Radio Log Command
+	# Radio Log Command
 	alias trlc="adb wait-for-device logcat -b radio|tee >> $home_dir/r1-$(date +"%m-%d-%Y\ %T").log"
-	#WiFi Command
+	# WiFi Command
 	alias dw="adb shell 'su -c \"svc wifi disable\"' && echo 'WiFi Disable'"
 	alias ew="adb shell 'su -c \"svc wifi enable\"' && echo 'WiFi Enable'"
-	#Other Command
-	alias msuiapk="mka SystemUI -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/SystemUI/SystemUI.apk system/priv-app/SystemUI/ && adb reboot"
-	alias mssapk="mka Settings -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/Settings/Settings.apk system/priv-app/Settings/ && adb reboot"
-	alias ml3apk="mka Pixelated -j$(expr $(nproc --all) \* 10) && adb remount && adb shell input keyevent KEYCODE_POWER && adb install -r out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/app/Pixelated/Pixelated.apk"
+	# Other Command
+	alias msuiapk="mka SystemUI -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/SystemUI/SystemUI.apk system/priv-app/SystemUI/ && adb reboot"
+	alias mssapk="mka Settings -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/Settings/Settings.apk system/priv-app/Settings/ && adb reboot"
+	alias ml3apk="mka Pixelated -j4 && adb remount && adb shell input keyevent KEYCODE_POWER && adb install -r out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/app/Pixelated/Pixelated.apk"
 	alias tss=". build/envsetup.sh && show_alias && adb shell screencap -p /sdcard/screen.png && adb pull /sdcard/screen.png $home_dir/&& mv $home_dir/screen.png $home_dir/screen-$(date +"%m-%d-%Y\ %T").png &&  adb shell rm -f /sdcard/.screen.png"
 	alias fsep="adb pull /sys/fs/selinux/policy $home_dir && adb logcat -b all -d | audit2allow -p $home_dir/policy"
 	alias sabao="croot && for otaupdate in out/dist/*-target_files-*.zip; do ./build/tools/releasetools/sign_target_files_apks -o -d ~/.android-certs $otaupdate $(echo "signed-$(echo "$otaupdate" | sed -e 's/out\/dist\///')"); done && for signedotaupdate in $(ls *-target_files-*.zip); do ./build/tools/releasetools/ota_from_target_files -k ~/.android-certs/releasekey --block --backup=true $signedotaupdate $(sed 's/signed-//' <<< "$signedotaupdate"); done;"
-	#Lightning Fast Roms Flags
+	# Lightning Fast Roms Flags
 	alias wga="export WITH_GAPPS=true"
 	alias wnga="export WITH_GAPPS=false"
 	alias fdj="export DEVICE_SUPPORT_DJ=true"
@@ -195,96 +240,81 @@ function func_alias()
 
 function show_alias()
 {
-	#Update Tools
+	# Update Tools
 	echo -e "\nUpdate Tools"
 	echo -e "${CL_LBL}\nudt${CL_RST}\trepo sync -c -d --force-sync BAProductions/vendor_extra && . build/envsetup.sh && show_alias"
-	#Repo Sync Command
+	# Repo Sync Command
 	echo -e "\nRepo Sync Commend"
-	echo -e "${CL_LBL}\nrs${CL_RST}\trepo sync -c -d --force-sync && . build/envsetup.sh && show_alias"
+	echo -e "${CL_LBL}\nrs${CL_RST}\trepo sync -f -d -j4 && . build/envsetup.sh && show_alias"
 	echo -e "${CL_LBL}\narb${CL_RST}\tcd vendor/cm/ && git am --abort && cd ../.. && . build/envsetup.sh && show_alias"
-	#Nexus 7 More Control Panel
+	# Nexus 7 More Control Panel
 	echo -e "\nNexus 7 Forever More Control Panel"
-	echo -e "${CL_LBL}\nlgrou${CL_RST}\tlunch aosp_grouper-user -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nlgroud${CL_RST}\tlunchg aosp_grouper-userdebug -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nlgroeng${CL_RST}\tlunch aosp_grouper-eng -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
+	echo -e "${CL_LBL}\nlgrou${CL_RST}\tlunch aosp_grouper-user -j4 && . build/envsetup.sh && show_alias"
+	echo -e "${CL_LBL}\nlgroud${CL_RST}\tlunchg aosp_grouper-userdebug -j4 && . build/envsetup.sh && show_alias"
+	echo -e "${CL_LBL}\nlgroeng${CL_RST}\tlunch aosp_grouper-eng -j4 && . build/envsetup.sh && show_alias"
 	echo -e "\nNexus 7 Forever More Control Panel Extra Command"
-	echo -e "${CL_LBL}\nmgdv${CL_RST}\tmka clobber -j$(expr $(nproc --all) \* 10) && lunch aosp_grouper-userdebug -j$(expr $(nproc --all) \* 10)  &&  mka bacon -j$(expr $(nproc --all) \* 10) && rbir";
-	#Samsung Galaxy Tab E 9.6 WiFi New Tablet
+	echo -e "${CL_LBL}\nmgdv${CL_RST}\tmka clobber -j4 && lunch aosp_grouper-userdebug -j4  &&  mka bacon -j4 && rbir";
+	# Samsung Galaxy Tab E 9.6 WiFi New Tablet
 	echo -e "\nSamsung Galaxy Tab E 9.6 WiFi New Tablet"
-	echo -e "${CL_LBL}\nlgteu${CL_RST}\tlunch lineage_gtelwifiue-user -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nlgteud${CL_RST}\tlunch lineage_gtelwifiue-userdebug -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nlgteeng${CL_RST}\tlunch lineage_gtelwifiue-eng -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	#Samsung Galaxy Tab 4 10.1 WiFi Old Tablet
-	echo -e "\nSamsung Galaxy Tab 4 10.1 WiFi Old Tablet"
-	echo -e "${CL_LBL}\nlmu${CL_RST}\tlunch lineage_matissewifi-user -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nlmud${CL_RST}\tlunch lineage_matissewifi-userdebug -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nlmeng${CL_RST}\tlunch lineage_matissewifi-eng -j$(expr $(nproc --all) \* 10) && . build/envsetup.sh && show_alias"
-	echo -e "${CL_LBL}\nmofmbeng${CL_RST}\tmka clobber -j$(expr $(nproc --all) \* 10) && breakfast lineage_matissewifi-eng -j$(expr $(nproc --all) \* 10) && mka target-files-package dist otatools"
-	echo -e "${CL_LBL}\nmofmbud${CL_RST}\tmka clobber -j$(expr $(nproc --all) \* 10) && breakfast lineage_matissewifi-userdebug -j$(expr $(nproc --all) \* 10) && mka target-files-package dist otatools"
-	#Samsung Galaxy Tab 4 10.1 WiFi Old Tablet Extre
-	echo -e "${CL_LBL}\nmmwdvus${CL_RST}\tnfdj && wnga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=false -j$(expr $(nproc --all) \* 10) && rbir";
-	echo -e "${CL_LBL}\nmmwdvs${CL_RST}\tnfdj && wga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=true -j$(expr $(nproc --all) \* 10) && rbir";
-	echo -e "${CL_LBL}\nmmwdvsp${CL_RST}\tfdj && wga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=true -j$(expr $(nproc --all) \* 10) && rbir";
-	echo -e "${CL_LBL}\nmmwdvb${CL_RST}\twnga && mka clobber -j$(expr $(nproc --all) \* 10) && brunch lineage_matisselte-eng WITH_DEXPREOPT=true WITH_GAPPS=false -j$(expr $(nproc --all) \* 10) && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=true WITH_GAPPS=true -j$(expr $(nproc --all) \* 10) && rbir"
-	echo -e "${CL_LBL}\nmcl${CL_RST}\tmka camera.msm8226 -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/hw/camera.msm8226.so system/lib/hw/ && adb shell chmod 0644 system/lib/hw/camera.msm8226.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
-	#Camera Wrapper For MSM8226 Devices
-	echo -e "${CL_LBL}\nmcs${CL_RST}\tmka libmmcamera_sr130pc20_shim -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/libmmcamera_sr130pc20_shim.so system/lib/ && adb shell chmod 0644 system/lib/libmmcamera_sr130pc20_shim.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
-	#Build Commands
+	echo -e "${CL_LBL}\nlgteu${CL_RST}\tlunch lineage_gtelwifiue-user -j4 && . build/envsetup.sh && show_alias"
+	echo -e "${CL_LBL}\nlgteud${CL_RST}\tlunch lineage_gtelwifiue-userdebug -j4 && . build/envsetup.sh && show_alias"
+	echo -e "${CL_LBL}\nlgteeng${CL_RST}\tlunch lineage_gtelwifiue-eng -j4 && . build/envsetup.sh && show_alias"
+	# Samsung Galaxy Tab 4 10.1 WiFi Old Tablet
+	# Camera Wrapper For MSM8226 Devices
+	echo -e "${CL_LBL}\nmcs${CL_RST}\tmka libmmcamera_sr130pc20_shim -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/lib/libmmcamera_sr130pc20_shim.so system/lib/ && adb shell chmod 0644 system/lib/libmmcamera_sr130pc20_shim.so && adb reboot && adb wait-for-device logcat | grep --color=auto -E 'camera|preview|sr|selinux|not found|sepolicy|avc|policy|rev'";
+	# Build Commands
 	echo -e "\nBuild Commands Samsung Galaxy Tab4 10.1 & Samsung Galaxy Tab4 8.0"
-	#Build Command Userdubug
-	#Build Command Userdubug Sweetend
-	echo -e "${CL_LBL}\nmat4uds${CL_RST}\texport WITH_DEXPREOPT=false && nfdj && wga && mka clobber -j40 && nfdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisselte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisse3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_milletwifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true-j40 && nfdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_millet3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	echo -e "${CL_LBL}\nmat4wmduds${CL_RST}\texport WITH_DEXPREOPT=false && nfdj && wga && mka clobber -j40 && nfdj && wga && nfdj && wga && brunch lineage_matisselte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisse3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && nfdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_millet3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 &&  fdj && wga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-
-	#Build Command Userdubug Unsweetend
-	echo -e "${CL_LBL}\nmat4udus${CL_RST}\texport WITH_DEXPREOPT=false && nfdj && wnga && mka clobber -j40 && nfdj && wnga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisselte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisse3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_milletwifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false-j40 && nfdj && wnga && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_millet3g-userdebug WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	#Build Command Eng
-	#Build Command Eng Sweetend
+	# Build Command
+	# Build Command All Devices Userdubug
+	echo -e "${CL_LBL}\nbad ${CL_RST}\func_build_all_devices";
+	# Build Command Eng
+	# Build Command Eng Sweetend
 	echo -e "${CL_LBL}\nmat4engs${CL_RST}\tnfdj && wga && mka clobber -j40 && nfdj && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_matisse3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_milletwifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true-j40 && nfdj && wga && brunch lineage_milletlte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && nfdj && wga && brunch lineage_millet3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && fdj && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
-	#Build Command Eng Unsweetend
-	echo -e "${CL_LBL}\nmat4engus${CL_RST}\ nfdj && wnga && mka clobber -j40 && nfdj && wnga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_matisse3g-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_milletwifi-eng WITH_DEXPREOPT=false WITH_GAPPS=false-j40 && nfdj && wnga && brunch lineage_milletlte-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && nfdj && wnga && brunch lineage_millet3g-eng WITH_DEXPREOPT=false WITH_GAPPS=false -j40 && fdj && wga && brunch lineage_matissewifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
+	# Build Command Eng Unsweetend
+	echo -e "${CL_LBL}\nmat4engus${CL_RST}\ lunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_matisselte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_matisse3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && lunch lineage_milletwifi-eng WITH_DEXPREOPT=false WITH_GAPPS=true-j4 && mb && lunch lineage_milletlte-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb  && lunch lineage_millet3g-eng WITH_DEXPREOPT=false WITH_GAPPS=true -j4 && mb && rbir
+";
 	echo -e "${CL_LBL}\nmampd${CL_RST}\ export WITH_DEXPREOPT=false && mka clobber -j40 && fdj && wga && brunch lineage_matissewifi-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && brunch lineage_milletlte-userdebug WITH_DEXPREOPT=false WITH_GAPPS=true -j40 && rbir";
 
-	#Build Commands
+	# Build Commands
 	echo -e "\nBuild Commands"
-	echo -e "${CL_LBL}\nmb${CL_RST}\tmka bacon -j$(expr $(nproc --all) \* 10) && rbir"
-	echo -e "${CL_LBL}\nmsi${CL_RST}\tmka systemimage -j$(expr $(nproc --all) \* 10) && mop && rbir"
-	echo -e "${CL_LBL}\nmbi${CL_RST}\tmka bootimage -j$(expr $(nproc --all) \* 10) && rbir && adb wait-for-recovery shell rm -f sdcard/boot.img && sleep 20 && adb wait-for-recovery push out/target/product/boot.img sdcard"
-	echo -e "${CL_LBL}\nmbic${CL_RST}\tmka bootimage -j$(expr $(nproc --all) \* 10) && rbir && sleep 20 && adb wait-for-recovery push out/target/product//boot.img sdcard && adb wait-for-device shell reboot -p"
-	echo -e "${CL_LBL}\nmk${CL_RST}\tmka kernel -j$(expr $(nproc --all) \* 10) && rbir"
-	echo -e "${CL_LBL}\nmri${CL_RST}\tmka recoveryimage -j$(expr $(nproc --all) \* 10) && rbir && adb wait-for-recovery push out/target/product//recovery.img sdcard"
-	echo -e "${CL_LBL}\nmop${CL_RST}\tmka otapackage -j$(expr $(nproc --all) \* 10) && mop && rbir"
-	#Logcat Commands
+	echo -e "${CL_LBL}\nmb${CL_RST}\tmka bacon -j4 && rbir"
+	echo -e "${CL_LBL}\nmsi${CL_RST}\tmka systemimage -j4 && mop && rbir"
+	echo -e "${CL_LBL}\nmbi${CL_RST}\tmka bootimage -j4 && rbir && adb wait-for-recovery shell rm -f sdcard/boot.img && sleep 20 && adb wait-for-recovery push out/target/product/boot.img sdcard"
+	echo -e "${CL_LBL}\nmbic${CL_RST}\tmka bootimage -j4 && rbir && sleep 20 && adb wait-for-recovery push out/target/product//boot.img sdcard && adb wait-for-device shell reboot -p"
+	echo -e "${CL_LBL}\nmk${CL_RST}\tmka kernel -j4 && rbir"
+	echo -e "${CL_LBL}\nmri${CL_RST}\tmka recoveryimage -j4 && rbir && adb wait-for-recovery push out/target/product//recovery.img sdcard"
+	echo -e "${CL_LBL}\nmop${CL_RST}\tmka otapackage -j4 && mop && rbir"
+	# Logcat Commands
 	echo -e "\nLogcat Commands"
 	echo -e "${CL_LBL}\ntlc${CL_RST}\tadb wait-for-device logcat"
 	echo -e "${CL_LBL}\ntlcf${CL_RST}\t. build/envsetup.sh && show_alias && adb reboot && adb wait-for-device logcat | tee >> $home_dir/logcat-$(date +"%m-%d-%Y\ %T").log"
 	echo -e "${CL_LBL}\ntlcfe${CL_RST}\t. build/envsetup.sh && show_alias && adb reboot && adb wait-for-device logcat *:E | tee >> $home_dir/logcat-e-$(date +"%m-%d-%Y\ %T").log"
-	#Kmesg Commands
+	# Kmesg Commands
 	echo -e "\nKmsg Commands"
 	echo -e "${CL_LBL}\nrkm${CL_RST}\tadb wait-for-device shell cat /proc/kmsg"
 	echo -e "${CL_LBL}\nrkmf${CL_RST}\t. build/envsetup.sh && show_alias && adb wait-for-device shell cat /proc/kmsg | tee >> $home_dir/kmesg-$(date +"%m-%d-%Y\ %T").log"
 	echo -e "${CL_LBL}\nrfkmf${CL_RST}\t. build/envsetup.sh && show_alias && adb reboot && adb wait-for-device shell cat /proc/kmsg |tee >> $home_dir/kmesg-$(date +"%m-%d-%Y\ %T").log"
-	#Dmesg Command
+	# Dmesg Command
    	echo -e "\nDmesg Commands"
    	echo -e "${CL_LBL}\nrdm${CL_RST}\tadb wait-for-device shell dmesg"
 	echo -e "${CL_LBL}\nrdmf${CL_RST}\t. build/envsetup.sh && show_alias && adb wait-for-device shell dmesg | tee >> $home_dir/dmesg-$(date +"%m-%d-%Y\ %T").log"
 	echo -e "${CL_LBL}\nrfdmf${CL_RST}\t. build/envsetup.sh && show_alias && adb reboot && adb wait-for-device shell dmesg | tee >> $home_dir/dmesg-$(date +"%m-%d-%Y\ %T").log"
 	echo -e "\nRadio Log  Commands"
-	#Radio Log Command
+	# Radio Log Command
 	echo -e "${CL_LBL}\ntrlc${CL_RST}\tadb wait-for-device logcat -b radio|tee >> $home_dir/r1-$(date +"%m-%d-%Y\ %T").log"
-	#WiFi Commands
+	# WiFi Commands
 	echo -e "\nWiFi Commands"
 	echo -e "${CL_LBL}\ndw${CL_RST}\tadb shell 'su -c "\"svc wifi disable"\"' && echo 'WiFi Disabled'"
 	echo -e "${CL_LBL}\new${CL_RST}\tadb shell 'su -c "\"svc wifi enable"\"' && echo 'WiFi Enabled'"
-	#Other Commands
+	# Other Commands
 	echo -e "\nOther Commands"
-	echo -e "${CL_LBL}\nmsuiapk${CL_RST}\tmka SystemUI -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/SystemUI/SystemUI.apk system/priv-app/SystemUI/ && adb reboot"
-	echo -e "${CL_LBL}\nmssapk${CL_RST}\tmka Settings -j$(expr $(nproc --all) \* 10) && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/Settings/Settings.apk system/priv-app/Settings/ && adb reboot"
-	echo -e "${CL_LBL}\nml3apk${CL_RST}\tmka Pixelated -j$(expr $(nproc --all) \* 10) && adb remount && adb shell input keyevent KEYCODE_POWER &&  adb install -r out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/app/Pixelated/Pixelated.apk"
+	echo -e "${CL_LBL}\nmsuiapk${CL_RST}\tmka SystemUI -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/SystemUI/SystemUI.apk system/priv-app/SystemUI/ && adb reboot"
+	echo -e "${CL_LBL}\nmssapk${CL_RST}\tmka Settings -j4 && adb remount && adb push out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/priv-app/Settings/Settings.apk system/priv-app/Settings/ && adb reboot"
+	echo -e "${CL_LBL}\nml3apk${CL_RST}\tmka Pixelated -j4 && adb remount && adb shell input keyevent KEYCODE_POWER &&  adb install -r out/target/product/$(sed 's/lineage_//' <<< "${TARGET_PRODUCT}")/system/app/Pixelated/Pixelated.apk"
 	echo -e "${CL_LBL}\ntss${CL_RST}\t. build/envsetup.sh && show_alias && adb shell screencap -p /sdcard/screen.png && adb pull /sdcard/screen.png && mv screen.png ~/$rom_dir/screen-$(date +"%m-%d-%Y\ %T").png &&  adb shell rm -f /sdcard/.screen.png"
 	echo -e "${CL_LBL}\nfsep${CL_RST}\tadb pull /sys/fs/selinux/policy $home_dir && adb logcat -b all -d | audit2allow -p $home_dir/policy"
 	echo -e "${CL_LBL}\nsabao${CL_RST}\tcroot && for otaupdate in out/dist/*-target_files-*.zip; do ./build/tools/releasetools/sign_target_files_apks -o -d ~/.android-certs $otaupdate $(echo "signed-$(echo "$otaupdate" | sed -e 's/out\/dist\///')"); done && for signedotaupdate in $\e(((ls *-target_files-*.zip); do ./build/tools/releasetools/ota_from_target_files -k ~/.android-certs/releasekey --block --backup=true $signedotaupdate $(sed 's/signed-//' <<<"$signedotaupdate"); done;"
-	#Lightning Fast Roms Flags
+	# Lightning Fast Roms Flags
 	echo -e "${CL_LBL}\nwga${CL_RST}\texport WITH_GAPPS=true"
 	echo -e "${CL_LBL}\nwnga${CL_RST}\texport WITH_GAPPS=false"
 	echo -e "${CL_LBL}\nfdj${CL_RST}\texport DEVICE_SUPPORT_DJ=true"
