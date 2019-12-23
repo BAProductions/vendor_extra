@@ -1,6 +1,6 @@
 function func_setenv()
 {
-if [ "${rom_type}" == "cm" ]; then myrom="cm based rom"; MY_BUILD="$CM_BUILD";
+if [ "${rom_type}" == "lineage" ]; then myrom="lineage based rom"; MY_BUILD="$LINEAGE_BUILD";
 elif [ "${rom_type}" == "du" ]; then myrom="du based rom"; MY_BUILD="$DU_BUILD";
 elif [ "${rom_type}" == "omni" ]; then myrom="omni based rom"; MY_BUILD="$CUSTOM_BUILD";
 else echo -e "${CL_RED} * Error: rom_type not set [vendor/extra/config.sh]${CL_RST}\n"; fi
