@@ -5,7 +5,7 @@ ccache_size=75G
 home_dir=/home/"$(whoami)"/Logs
 
 #cm/du/omni
-rom_type=cm 
+rom_type=lineage 
 
 with_su=1
 jobs=5
