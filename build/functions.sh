@@ -10,35 +10,12 @@ unset with_su
 unset CCACHE_DIR
 }
 
-#function patchcommontree()
-{
-#for f in `test -d vendor && find -L vendor/extra/patch/*/ -maxdepth 1 -name 'apply.sh' 2> /dev/null`
-#do
-#echo -e "${CL_YLW}\nPatching $f${CL_RST}"
-#. $f
-#done
-#unset f
-#}
-
-#function patchdevicetree()
-{
-#for f in `test -d device && find -L device/*/$MY_BUILD/patch -maxdepth 4 -name 'apply.sh' 2> /dev/null | sort` \
-# `test -d vendor && find -L vendor/extra/patch/device/$MY_BUILD -maxdepth 1 -name 'apply.sh' 2> /dev/null | sort`
-#do
-echo -e "${CL_YLW}\nPatching $f${CL_RST}"
-#. $f
-#done
-#unset f
-#}
-
 function set_stuff_for_environment()
 {
 settitle
 set_java_home
 setpaths
 set_sequence_number
-#patchcommontree
-#patchdevicetree
 
 # With this environment variable new GCC can apply colors to warnings/errors
 export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
@@ -98,11 +75,11 @@ if [ ! -d ".repo/local_manifests" ]
 then
 rsync -a vendor/extra/local_manifests/*.xml .repo/local_manifests/;
 echo -e "${CL_GRN} * Local Manifest initialised, syncing now...\n${CL_RST}";
-repo sync -j100 --force-sync 2&> /dev/null;
+repo sync -j40 --force-sync 2&> /dev/null;
 else
 rsync -avc --stats --exclude=du_manifest.xml vendor/extra/local_manifests/*.xml .repo/local_manifests/ >/tmp/rsync;
 fi
-if ! `sed '/xml/!d' /tmp/rsync`&> /dev/null; then repo sync -j100 --force-sync; fi
+if ! `sed '/xml/!d' /tmp/rsync`&> /dev/null; then repo sync -j4 --force-sync; fi
 
 echo -e "${CL_GRN} * Setup repos${CL_RST}"
 echo -e "${CL_LBL}   "`sed '/xml/!d' /tmp/rsync`"\n${CL_RST}"
