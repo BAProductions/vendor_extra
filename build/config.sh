@@ -1,6 +1,6 @@
 ccache_use=1
 ccache_dir=/home/"$(whoami)"/ccache
-ccache_size=500G
+ccache_size=1000G
 
 home_dir=/home/"$(whoami)"/Logs
 out_dir=/home/"$(whoami)"/lineage-16.0/out/target/product/
